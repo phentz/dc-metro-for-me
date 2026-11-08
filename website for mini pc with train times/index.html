@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DC Transit Pulse</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Washington, DC</p>
+          <h1>Transit Pulse</h1>
+        </div>
+        <div id="headerAlerts" class="header-alerts" aria-live="polite" hidden></div>
+        <div id="weatherCard" class="weather-card" aria-live="polite">
+          <span class="weather-icon" aria-hidden="true">☁</span>
+          <div><strong id="weatherTemp">--°</strong><span id="weatherSummary">Weather loading</span><span id="weatherRain">Rain outlook loading</span></div>
+        </div>
+        <div class="top-meta">
+          <span id="pageLabel">Metro</span>
+          <strong id="lastUpdated">Not yet</strong>
+        </div>
+      </header>
+
+      <section class="control-panel" aria-label="Location and data controls">
+        <details id="setupPanel" class="setup-panel" open>
+          <summary><strong>Location &amp; data setup</strong><span id="setupSummary">Add a location and WMATA key</span></summary>
+          <div class="setup-content">
+            <form id="locationForm" class="search-row">
+              <label class="field grow">
+                <span>Location</span>
+                <input id="locationInput" type="search" autocomplete="street-address" placeholder="Use GPS or type a DC address">
+              </label>
+              <button type="submit">Search</button>
+              <button type="button" class="secondary" id="geoButton">Use GPS</button>
+            </form>
+
+            <details class="settings">
+              <summary>Data settings</summary>
+              <div class="settings-grid">
+                <label class="field">
+                  <span>WMATA API key</span>
+                  <input id="wmataKey" type="password" autocomplete="off" placeholder="Required for live trains, buses, alerts">
+                </label>
+                <label class="field">
+                  <span>Traffic API key</span>
+                  <input id="trafficKey" type="password" autocomplete="off" placeholder="Optional TomTom key">
+                </label>
+                <label class="field">
+                  <span>Google Maps Routes key</span>
+                  <input id="googleMapsKey" type="password" autocomplete="off" placeholder="Optional live Google traffic key">
+                </label>
+                <label class="field compact">
+                  <span>Bus radius</span>
+                  <select id="radiusSelect">
+                    <option value="500">0.3 mi</option>
+                    <option value="800" selected>0.5 mi</option>
+                    <option value="1200">0.75 mi</option>
+                    <option value="1600">1 mi</option>
+                  </select>
+                </label>
+              </div>
+            </details>
+
+            <p id="message" class="message" role="status">Start with GPS or an address. The display rotates pages every 15 seconds.</p>
+          </div>
+        </details>
+      </section>
+
+      <nav class="pager" aria-label="Display pages">
+        <button type="button" class="page-tab active" data-page-target="0" onclick="window.showTransitPage?.(0)">Metro</button>
+        <button type="button" class="page-tab" data-page-target="1" onclick="window.showTransitPage?.(1)">Bus</button>
+        <button type="button" class="page-tab" data-page-target="2" onclick="window.showTransitPage?.(2)">Roads</button>
+        <button type="button" class="page-tab" data-page-target="3" onclick="window.showTransitPage?.(3)">Lines</button>
+        <button type="button" class="lock-button" id="lockButton" aria-pressed="false" onclick="window.toggleTransitLock?.()">Lock</button>
+      </nav>
+
+      <section class="screen" aria-live="polite">
+        <article class="display-page active" data-page="0" aria-labelledby="station-heading">
+          <details id="metroStationsPanel" class="metro-stations-panel" open>
+            <summary class="page-heading">
+              <div>
+                <p class="eyebrow">Page 1</p>
+                <h2 id="station-heading">Closest Metro Stations</h2>
+              </div>
+              <span id="stationCount" class="pill">0</span>
+            </summary>
+            <div id="stationPicker" class="station-picker" aria-label="Choose up to three nearby Metro stations"></div>
+            <div id="metroVisual" class="metro-visual" aria-label="Nearby Metro stations visual"></div>
+            <div id="stations" class="station-board"></div>
+          </details>
+          <section class="live-trains-panel" aria-labelledby="live-trains-heading">
+            <div class="live-trains-heading">
+              <div>
+                <p class="eyebrow">WMATA train positions</p>
+                <h3 id="live-trains-heading">Trains moving now</h3>
+              </div>
+              <span id="liveTrainCount" class="live-indicator">Waiting for data</span>
+            </div>
+            <div id="liveTrains" class="live-trains-list"></div>
+            <p class="live-trains-note">Transit feeds refresh together every 45 seconds. Track circuit identifies the train’s current section of rail.</p>
+          </section>
+        </article>
+
+        <article class="display-page" data-page="1" aria-labelledby="bus-heading">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Page 2</p>
+              <h2 id="bus-heading">Bus Transit Lines</h2>
+            </div>
+            <span id="busCount" class="pill">0</span>
+          </div>
+          <div id="busCoverage" class="bus-coverage"></div>
+          <div id="buses" hidden></div>
+        </article>
+
+        <article class="display-page" data-page="2" aria-labelledby="travel-heading">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Page 3</p>
+              <h2 id="travel-heading">Road Conditions</h2>
+            </div>
+          </div>
+          <p class="meta road-intro">Driving and transit links from your selected location to major regional hubs.</p>
+          <div id="traffic" class="traffic-board"></div>
+        </article>
+
+        <article class="display-page" data-page="3" aria-labelledby="featured-bus-heading">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Page 4</p>
+              <h2 id="featured-bus-heading">Selected Bus Routes</h2>
+            </div>
+            <span id="featuredBusCount" class="pill">5 routes</span>
+          </div>
+          <div id="d80Projections" class="d80-projections"></div>
+          <div id="featuredBusCoverage" class="bus-coverage"></div>
+        </article>
+      </section>
+    </main>
+
+    <template id="emptyTemplate">
+      <article class="empty">
+        <strong></strong>
+        <p></p>
+      </article>
+    </template>
+
+    <script src="config.js"></script>
+    <script async src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onload="window.dispatchEvent(new Event('leaflet-ready'))"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

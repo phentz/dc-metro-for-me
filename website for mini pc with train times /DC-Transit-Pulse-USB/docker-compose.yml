@@ -1,0 +1,16 @@
+services:
+  transit-pulse:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      WMATA_API_KEY: ""
+      TOMTOM_API_KEY: ""
+      DEFAULT_LAT: "38.90525"
+      DEFAULT_LON: "-77.05165"
+      DEFAULT_LABEL: "2400 M Street NW"
+      TRAIN_LINE: "SV"
+      TRAIN_DESTINATION_CODES: "N06,N07"
+      TRAIN_DIRECTION_LABEL: "Silver Line toward Dulles/Ashburn"
+      STATION_CODES: "C03,A03"
+    restart: unless-stopped
